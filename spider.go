@@ -1,10 +1,14 @@
-package main
+package gospider
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/url"
+	"os"
+	"os/signal"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -154,8 +158,8 @@ func (s *Spider) initCompent() {
 func (s *Spider) Run() {
 	s.initCompent()
 	task := make(chan string, 200)
-	//signalChan := make(chan os.Signal, 1)
-	//signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
+	signalChan := make(chan os.Signal, 1)
+	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	//分配任务
@@ -180,12 +184,12 @@ func (s *Spider) Run() {
 	wg := sync.WaitGroup{}
 	for i := 0; i < s.goroutines; i++ {
 		wg.Add(1)
-		go func(c context.Context) {
+		go func(index int, c context.Context) {
 			defer wg.Done()
 			for {
 				select {
 				case <-c.Done():
-					log.Println("程序结束运行")
+					log.Printf("协程 %d 程序结束\n", index)
 					return
 				case u := <-task:
 					time.Sleep(s.sleepTime)
@@ -213,12 +217,26 @@ func (s *Spider) Run() {
 					}
 				case <-time.After(s.timeOut):
 					if s.isTimeOut {
-						log.Println("程序结束运行")
+						log.Printf("协程 %d 程序结束\n", index)
 						return
 					}
 				}
 			}
-		}(ctx)
+		}(i, ctx)
 	}
+	//信号
+	go func(c context.Context) {
+		for {
+			select {
+			case <-c.Done():
+				return
+			case <-signalChan:
+				fmt.Println("信号打断")
+				cancel()
+				return
+			}
+		}
+	}(ctx)
 	wg.Wait()
+	fmt.Println("爬虫结束运行!")
 }

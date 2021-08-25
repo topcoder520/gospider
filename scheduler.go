@@ -1,4 +1,4 @@
-package main
+package gospider
 
 type Scheduler interface {
 	Push(url ...string)

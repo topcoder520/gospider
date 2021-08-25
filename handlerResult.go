@@ -1,4 +1,4 @@
-package main
+package gospider
 
 type HandlerResult struct {
 	TargetUrls  []string
