@@ -1,7 +1,15 @@
 # gospider
 用go写的简单爬虫
 
-DEMO：
+DEMO1：
+
+    func TestExample_1(t *testing.T) {
+        fmt.Println("start spider....")
+        spider := NewSpider("https://studygolang.com/pkgdoc")
+        spider.Run()
+    }
+
+DEMO2：
 
     func TestExample_2(t *testing.T) {
       fmt.Println("start spider....")
