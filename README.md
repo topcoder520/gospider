@@ -22,7 +22,7 @@ DEMO2：
       //spider.SetDownloader() //设置自己实现的下载器,下载器必须实现Downloader接口，不设置则使用默认下载器
       //spider.AddHandler() //添加自己实现的处理html文本的处理器,处理器必须实现Handler接口，不设置则使用默认的
       //spider.AddPipeline() //添加自己实现的结果处理器,处理器必须实现Pipeline接口，负责处理Handler返回的数据，不设置则使用默认的
-      //spider.SetScheduler() //设置自己实现的调度器，不设置则使用默认的
+      //spider.SetScheduler() //设置自己实现的调度器,调度器必须实现Scheduler接口，不设置则使用默认的
       spider.Run()
     }
 
