@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
@@ -13,30 +14,35 @@ import (
 )
 
 type Spider struct {
-	downloader   Downloader          //下载器 负责下载网页
-	listHandler  []Handler           //处理器 负责处理网页
-	listPipeline []Pipeline          //管道 负责持久化数据或者下载资源的任务
-	scheduler    Scheduler           //调度器 负责待爬取的url的管理
-	sleepTime    time.Duration       //控制访问的速度，单个协程每执行一次沉睡sleepTime
-	goroutines   int                 //开启协程数量
-	header       map[string][]string //设置请求头
-	initUrls     []string            //种子url
-	timeOut      time.Duration       //没有数据的情况下，程序结束运行的时间
-	isTimeOut    bool                //没有数据的情况下是否自动退出，默认true
+	downloader       Downloader          //下载器 负责下载网页
+	listHandler      []Handler           //处理器 负责处理网页
+	listPipeline     []Pipeline          //管道 负责持久化数据或者下载资源的任务
+	scheduler        Scheduler           //调度器 负责待爬取的url的管理
+	sleepTime        time.Duration       //控制访问的速度，单个协程每执行一次沉睡sleepTime
+	goroutines       int                 //开启协程数量
+	header           map[string][]string //设置请求头
+	initRequests     []Request           //种子url
+	timeOut          time.Duration       //没有数据的情况下，程序结束运行的时间
+	isTimeOut        bool                //没有数据的情况下是否自动退出，默认true
+	listListener     []Listener          //程序监听器
+	PreHandleRequest RequestHandle       //执行请求前的请求处理
 }
 
 //NewSpider 创建一个爬虫程序
 //seedUrl 种子Url
 func NewSpider(seedUrl ...string) *Spider {
 	spider := &Spider{
+		downloader:   NewDownloader(),
+		scheduler:    &RequestScheduler{},
 		listHandler:  make([]Handler, 0),
 		listPipeline: make([]Pipeline, 0),
 		sleepTime:    time.Second * 1, //默认1s
 		goroutines:   1,               //默认开1个
 		header:       make(map[string][]string),
-		initUrls:     make([]string, 0),
+		initRequests: make([]Request, 0),
 		isTimeOut:    true,
 		timeOut:      10 * time.Second,
+		listListener: make([]Listener, 0),
 	}
 	spider.checkUrls(seedUrl)
 	return spider
@@ -61,7 +67,12 @@ func (s *Spider) checkUrls(urls []string) {
 		if err != nil {
 			panic(err.Error())
 		}
-		s.initUrls = append(s.initUrls, u.String())
+		req := NewRequest()
+		req.Url = u.String()
+		req.Method = http.MethodGet
+		req.Header = s.header
+		req.Skip = false
+		s.initRequests = append(s.initRequests, req)
 	}
 }
 
@@ -115,6 +126,11 @@ func (s *Spider) SetScheduler(scheduler Scheduler) {
 	s.scheduler = scheduler
 }
 
+//AddListener 添加监听器
+func (s *Spider) AddListener(listener Listener) {
+	s.listListener = append(s.listListener, listener)
+}
+
 //initCompent init
 func (s *Spider) initCompent() {
 	if _, ok := s.header["User-Agent"]; !ok {
@@ -124,15 +140,14 @@ func (s *Spider) initCompent() {
 		httpDownloader := NewDownloader()
 		s.downloader = httpDownloader
 	}
-	s.downloader.SetHeader(s.header)
 
 	if s.scheduler == nil {
-		s.scheduler = &UrlScheduler{}
+		s.scheduler = &RequestScheduler{}
 	}
-	if len(s.initUrls) == 0 {
+	if len(s.initRequests) == 0 {
 		panic("seed url can not empty")
 	}
-	s.scheduler.Push(s.initUrls...)
+	s.scheduler.Push(s.initRequests...)
 
 	if s.listHandler == nil {
 		s.listHandler = make([]Handler, 0, 1)
@@ -154,10 +169,12 @@ func (s *Spider) initCompent() {
 	}
 }
 
+type RequestHandle func(req *Request)
+
 //Run 运行
 func (s *Spider) Run() {
 	s.initCompent()
-	task := make(chan string, 200)
+	task := make(chan Request, 200)
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -191,30 +208,29 @@ func (s *Spider) Run() {
 				case <-c.Done():
 					log.Printf("协程 %d 程序结束\n", index)
 					return
-				case u := <-task:
-					time.Sleep(s.sleepTime)
-					htmlStr, err := s.downloader.Download(u, c)
-					if err != nil {
-						log.Println(err)
-						continue
+				case req := <-task:
+					req.Downloader = s.downloader
+					req.Header = s.header
+					if s.PreHandleRequest != nil {
+						s.PreHandleRequest(&req)
 					}
-					lenHandle := len(s.listHandler)
-					lenPipeline := len(s.listPipeline)
-					for i := 0; i < lenHandle; i++ {
-						result := &HandlerResult{make([]string, 0), make(map[string]string)}
-						err = s.listHandler[i].Handle(htmlStr, result, c)
-						if err != nil {
-							log.Println(err)
-							continue
-						}
-						s.scheduler.Push(result.TargetUrls...)
-						for j := 0; j < lenPipeline; j++ {
-							err = s.listPipeline[j].Process(result, c)
+					if req.Skip {
+						return
+					}
+					err := s.handRequest(&req, c)
+					if s.listListener != nil && len(s.listListener) > 0 {
+						for _, listener := range s.listListener {
 							if err != nil {
-								log.Println(err)
+								listener.OnError(req, err, ctx)
+							} else {
+								listener.OnSuccess(req, ctx)
 							}
 						}
 					}
+					if err != nil {
+						log.Println("handle request err: ", err)
+					}
+					time.Sleep(s.sleepTime)
 				case <-time.After(s.timeOut):
 					if s.isTimeOut {
 						log.Printf("协程 %d 程序结束\n", index)
@@ -239,4 +255,36 @@ func (s *Spider) Run() {
 	}(ctx)
 	wg.Wait()
 	fmt.Println("爬虫结束运行!")
+}
+
+func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
+	resp, err := s.downloader.Download(req, ctx)
+	if err != nil {
+		return
+	}
+	lenHandle := len(s.listHandler)
+	lenPipeline := len(s.listPipeline)
+	for i := 0; i < lenHandle; i++ {
+		result := &Result{make([]Request, 0), make(map[string]interface{})}
+		err = s.listHandler[i].Handle(*resp, result, ctx)
+		if err != nil {
+			if err == ErrorSkip {
+				continue
+			}
+			return
+		}
+		if result.TargetRequests != nil && len(result.TargetRequests) > 0 {
+			s.scheduler.Push(result.TargetRequests...)
+		}
+		for j := 0; j < lenPipeline; j++ {
+			err = s.listPipeline[j].Process(result, ctx)
+			if err != nil {
+				if err == ErrorSkip {
+					continue
+				}
+				return
+			}
+		}
+	}
+	return
 }

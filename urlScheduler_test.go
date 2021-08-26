@@ -6,9 +6,9 @@ import (
 )
 
 func TestSCR(t *testing.T) {
-	scr := &UrlScheduler{}
-	scr.Push("12345")
-	scr.Push("sssss")
+	scr := &RequestScheduler{}
+	scr.Push(NewRequest())
+	scr.Push(NewRequest())
 	fmt.Println(scr.Poll())
 	fmt.Println(scr.PollN(2))
 }

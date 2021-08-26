@@ -8,31 +8,30 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"time"
 )
 
 type HttpDownloader struct {
 	HttpClient http.Client
-	Header     map[string][]string //设置请求头
 }
 
-func NewDownloader() Downloader {
+func NewDownloader() *HttpDownloader {
 	return &HttpDownloader{
 		HttpClient: http.Client{
+			Timeout: 10 * time.Second, // 10s 超时
 			Transport: &http.Transport{
 				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true,
+					InsecureSkipVerify: true, //跳过证书
 				},
 			},
 		},
 	}
 }
 
-func (d *HttpDownloader) SetHeader(header map[string][]string) {
-	d.Header = header
-}
-
-func (d *HttpDownloader) Download(urlstr string, ctx context.Context) (html string, err error) {
-	urlstr = strings.TrimSpace(urlstr)
+func (d *HttpDownloader) Download(request *Request, ctx context.Context) (r *Response, err error) {
+	r = &Response{}
+	r.Request = request
+	urlstr := strings.TrimSpace(request.Url)
 	if len(urlstr) == 0 {
 		err = errors.New("url can not empty")
 		return
@@ -41,20 +40,24 @@ func (d *HttpDownloader) Download(urlstr string, ctx context.Context) (html stri
 	if err != nil {
 		return
 	}
-	req, err := http.NewRequest(http.MethodGet, u.String(), nil)
+	req, err := http.NewRequest(request.Method, u.String(), nil)
 	if err != nil {
 		return
 	}
-	req.Header = http.Header(d.Header)
+	req.Header = http.Header(request.Header)
 	resp, err := d.HttpClient.Do(req)
 	if err != nil {
 		return
 	}
 	defer resp.Body.Close()
+	r.StatusCode = resp.StatusCode
+	r.Header = resp.Header
+	r.ContentLength = resp.ContentLength
+	r.Status = resp.Status
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return
 	}
-	html = string(b)
+	r.Body = string(b)
 	return
 }
