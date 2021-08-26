@@ -151,9 +151,9 @@ func (s *Spider) initCompent() {
 
 	if s.listHandler == nil {
 		s.listHandler = make([]Handler, 0, 1)
-		s.listHandler = append(s.listHandler, &HtmlHandler{})
+		s.listHandler = append(s.listHandler, &ConsoleHandler{})
 	} else if len(s.listHandler) == 0 {
-		s.listHandler = append(s.listHandler, &HtmlHandler{})
+		s.listHandler = append(s.listHandler, &ConsoleHandler{})
 	}
 	if s.listPipeline == nil {
 		s.listPipeline = make([]Pipeline, 0, 1)

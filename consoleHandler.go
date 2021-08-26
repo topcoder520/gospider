@@ -5,12 +5,12 @@ import (
 	"fmt"
 )
 
-type HtmlHandler struct {
+type ConsoleHandler struct {
 }
 
 //处理结果写入handleResult
 //返回 false则不处理
-func (hh *HtmlHandler) Handle(resp Response, handleResult *Result, ctx context.Context) error {
+func (hh *ConsoleHandler) Handle(resp Response, handleResult *Result, ctx context.Context) error {
 	fmt.Println("Status: ", resp.Status)
 	fmt.Println(resp.Body)
 	handleResult.AddItem("name", "小明")
