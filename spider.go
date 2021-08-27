@@ -11,6 +11,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"github.com/topcoder520/gospider/data"
 )
 
 type Spider struct {
@@ -28,6 +30,7 @@ type Spider struct {
 	PreHandleRequest RequestHandle       //执行请求前的请求处理
 	totalPage        int                 //爬取的总链接
 	totalPageMux     sync.RWMutex
+	store            data.Store //保存请求对象数据
 }
 
 //NewSpider 创建一个爬虫程序
@@ -170,6 +173,9 @@ func (s *Spider) initCompent() {
 	if s.sleepTime == time.Second*0 {
 		s.sleepTime = time.Second * 2
 	}
+	if s.store == nil {
+		s.store = data.CreateLeveldbStore("./data/db")
+	}
 }
 
 type RequestHandle func(req *Request)
@@ -178,6 +184,7 @@ type RequestHandle func(req *Request)
 func (s *Spider) Run() {
 	s.initCompent()
 	task := make(chan Request, 200)
+	interruptChan := make(chan int, s.goroutines+1)
 	signalChan := make(chan os.Signal, 1)
 	signal.Notify(signalChan, syscall.SIGHUP, syscall.SIGINT, syscall.SIGTERM)
 	ctx, cancel := context.WithCancel(context.Background())
@@ -187,6 +194,9 @@ func (s *Spider) Run() {
 		for {
 			select {
 			case <-c.Done():
+				close(task)
+				return
+			case <-interruptChan:
 				close(task)
 				return
 			default:
@@ -210,6 +220,21 @@ func (s *Spider) Run() {
 				select {
 				case <-c.Done():
 					log.Printf("协程 %d 程序结束\n", index)
+					return
+				case <-interruptChan:
+					for req := range task {
+						reqStr, err := RequestStringify(req)
+						if err != nil {
+							s.store.Add(fmt.Sprintf("req-%s-%s", "NO", req.Id), reqStr)
+						}
+					}
+					for s.scheduler.Len() > 0 {
+						req := s.scheduler.Poll()
+						reqStr, err := RequestStringify(req)
+						if err != nil {
+							s.store.Add(fmt.Sprintf("req-%s-%s", "NO", req.Id), reqStr)
+						}
+					}
 					return
 				case req := <-task:
 					req.Downloader = s.downloader
@@ -254,7 +279,9 @@ func (s *Spider) Run() {
 				return
 			case <-signalChan:
 				fmt.Println("信号打断")
-				cancel()
+				for i := 0; i < cap(interruptChan); i++ {
+					interruptChan <- 1
+				}
 				return
 			}
 		}
@@ -296,4 +323,9 @@ func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
 		}
 	}
 	return
+}
+
+//SetStoreDB 存储器 存储请求数据
+func (s *Spider) SetStoreDB(store data.Store) {
+	s.store = store
 }

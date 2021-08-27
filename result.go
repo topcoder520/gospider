@@ -1,5 +1,7 @@
 package gospider
 
+import uuid "github.com/satori/go.uuid"
+
 type Result struct {
 	TargetRequests []Request
 	TargetItems    map[string]interface{}
@@ -17,5 +19,9 @@ func (hdl *Result) AddTargetUrl(target string) {
 }
 
 func (hdl *Result) AddTargetRequest(target Request) {
+	if target.Id == "" {
+		u4 := uuid.NewV4()
+		target.Id = u4.String()
+	}
 	hdl.TargetRequests = append(hdl.TargetRequests, target)
 }

@@ -64,3 +64,101 @@
 11:27:51.938493 db@open done T·115.1592ms
 11:27:51.938493 db@close closing
 11:27:51.952518 db@close done T·14.0243ms
+=============== Aug 27, 2021 (CST) ===============
+14:56:42.642718 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+14:56:42.651726 version@stat F·[3] S·363B[363B] Sc·[0.75]
+14:56:42.651726 db@open opening
+14:56:42.651726 journal@recovery F·1
+14:56:42.652726 journal@recovery recovering @13
+14:56:42.694547 memdb@flush created L0@15 N·1 S·121B "key,v7":"key,v7"
+14:56:42.695546 version@stat F·[4] S·484B[484B] Sc·[1.00]
+14:56:42.761715 db@janitor F·6 G·0
+14:56:42.762702 db@open done T·110.9766ms
+14:56:42.762702 table@compaction L0·4 -> L1·0 S·484B Q·8
+14:56:42.762702 db@close closing
+14:56:42.790722 table@build created L1@18 N·1 S·121B "key,v7":"key,v7"
+14:56:42.790722 table@build exiting
+14:56:42.790722 table@build revert @18
+14:56:42.797729 db@close done T·35.0266ms
+=============== Aug 27, 2021 (CST) ===============
+14:58:04.722997 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+14:58:04.733018 version@stat F·[4] S·484B[484B] Sc·[1.00]
+14:58:04.733018 db@open opening
+14:58:04.733018 journal@recovery F·1
+14:58:04.734005 journal@recovery recovering @16
+14:58:04.777038 memdb@flush created L0@18 N·8 S·196B "1,v9":"moo-7,v15"
+14:58:04.778038 version@stat F·[5] S·680B[680B] Sc·[1.25]
+14:58:04.832074 db@janitor F·7 G·0
+14:58:04.832074 db@open done T·99.0559ms
+14:58:04.832074 table@compaction L0·5 -> L1·0 S·680B Q·18
+14:58:04.833075 db@close closing
+14:58:04.853089 table@build created L1@21 N·9 S·213B "1,v9":"moo-7,v15"
+14:58:04.853089 table@build exiting
+14:58:04.853089 table@build revert @21
+14:58:04.863102 db@close done T·30.027ms
+=============== Aug 27, 2021 (CST) ===============
+14:58:40.901154 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+14:58:40.911148 version@stat F·[5] S·680B[680B] Sc·[1.25]
+14:58:40.911148 db@open opening
+14:58:40.911148 journal@recovery F·1
+14:58:40.912148 journal@recovery recovering @19
+14:58:40.943450 memdb@flush created L0@21 N·8 S·203B "1,v18":"moo-7loo,v24"
+14:58:40.944459 version@stat F·[6] S·883B[883B] Sc·[1.50]
+14:58:41.004492 db@janitor F·8 G·0
+14:58:41.004492 db@open done T·93.3436ms
+14:58:41.005493 table@compaction L0·6 -> L1·0 S·883B Q·30
+14:58:41.007497 db@close closing
+14:58:41.045521 table@build created L1@24 N·10 S·228B "1,v18":"moo-7loo,v24"
+14:58:41.045521 table@build exiting
+14:58:41.045521 table@build revert @24
+14:58:41.065550 db@close done T·58.0529ms
+=============== Aug 27, 2021 (CST) ===============
+14:59:30.486131 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+14:59:30.496138 version@stat F·[6] S·883B[883B] Sc·[1.50]
+14:59:30.496138 db@open opening
+14:59:30.496138 journal@recovery F·1
+14:59:30.497138 journal@recovery recovering @22
+14:59:30.539463 memdb@flush created L0@24 N·10 S·230B "1,v27":"moo-7loo,v35"
+14:59:30.540459 version@stat F·[7] S·1KiB[1KiB] Sc·[1.75]
+14:59:30.593489 db@janitor F·9 G·0
+14:59:30.593489 db@open done T·97.3518ms
+14:59:30.593489 table@compaction L0·7 -> L1·0 S·1KiB Q·39
+14:59:30.594489 db@close closing
+14:59:30.614504 table@build created L1@27 N·12 S·254B "1,v27":"moo-7loo,v35"
+14:59:30.614504 table@build exiting
+14:59:30.614504 table@build revert @27
+14:59:30.625510 db@close done T·31.0213ms
+=============== Aug 27, 2021 (CST) ===============
+15:01:30.074876 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+15:01:30.083884 version@stat F·[7] S·1KiB[1KiB] Sc·[1.75]
+15:01:30.083884 db@open opening
+15:01:30.084882 journal@recovery F·1
+15:01:30.085869 journal@recovery recovering @25
+15:01:30.141908 memdb@flush created L0@27 N·10 S·228B "1,v38":"moo-7loo,v46"
+15:01:30.142909 version@stat F·[8] S·1KiB[1KiB] Sc·[2.00]
+15:01:30.205956 db@janitor F·10 G·0
+15:01:30.205956 db@open done T·122.0717ms
+15:01:30.205956 table@compaction L0·8 -> L1·0 S·1KiB Q·48
+15:01:30.219963 db@close closing
+15:01:30.228972 table@build created L1@30 N·12 S·252B "1,v38":"moo-7loo,v46"
+15:01:30.228972 table@build exiting
+15:01:30.228972 table@build revert @30
+15:01:30.235988 db@write was delayed N·10 T·14.0078ms
+15:01:30.239977 db@close done T·20.0138ms
+=============== Aug 27, 2021 (CST) ===============
+15:01:59.924757 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+15:01:59.933763 version@stat F·[8] S·1KiB[1KiB] Sc·[2.00]
+15:01:59.933763 db@open opening
+15:01:59.933763 journal@recovery F·1
+15:01:59.934763 journal@recovery recovering @28
+15:01:59.966507 memdb@flush created L0@30 N·10 S·228B "1,v49":"moo-7loo,v57"
+15:01:59.966507 version@stat F·[9] S·1KiB[1KiB] Sc·[2.25]
+15:02:00.022535 db@janitor F·11 G·0
+15:02:00.022535 db@open done T·88.7726ms
+15:02:00.023536 table@compaction L0·9 -> L1·0 S·1KiB Q·59
+15:02:00.039556 db@close closing
+15:02:00.043549 table@build created L1@33 N·12 S·252B "1,v49":"moo-7loo,v57"
+15:02:00.043549 table@build exiting
+15:02:00.043549 table@build revert @33
+15:02:00.048566 db@write was delayed N·10 T·14.0198ms
+15:02:00.052557 db@close done T·13.0003ms
