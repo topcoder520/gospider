@@ -26,6 +26,8 @@ type Spider struct {
 	isTimeOut        bool                //没有数据的情况下是否自动退出，默认true
 	listListener     []Listener          //程序监听器
 	PreHandleRequest RequestHandle       //执行请求前的请求处理
+	totalPage        int                 //爬取的总链接
+	totalPageMux     sync.RWMutex
 }
 
 //NewSpider 创建一个爬虫程序
@@ -77,8 +79,8 @@ func (s *Spider) checkUrls(urls []string) {
 }
 
 //AddInitUrl 添加种子链接
-func (s *Spider) AddSeedUrl(initUrl ...string) {
-	s.checkUrls(initUrl)
+func (s *Spider) AddSeedUrl(seedUrls ...string) {
+	s.checkUrls(seedUrls)
 }
 
 //SetSleepTime 睡眠时间
@@ -148,6 +150,7 @@ func (s *Spider) initCompent() {
 		panic("seed url can not empty")
 	}
 	s.scheduler.Push(s.initRequests...)
+	s.totalPage = len(s.initRequests)
 
 	if s.listHandler == nil {
 		s.listHandler = make([]Handler, 0, 1)
@@ -220,6 +223,9 @@ func (s *Spider) Run() {
 					err := s.handRequest(&req, c)
 					if s.listListener != nil && len(s.listListener) > 0 {
 						for _, listener := range s.listListener {
+							s.totalPageMux.RLock()
+							req.Extras["totalPage"] = s.totalPage
+							s.totalPageMux.RUnlock()
 							if err != nil {
 								listener.OnError(req, err, ctx)
 							} else {
@@ -275,6 +281,9 @@ func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
 		}
 		if result.TargetRequests != nil && len(result.TargetRequests) > 0 {
 			s.scheduler.Push(result.TargetRequests...)
+			s.totalPageMux.Lock()
+			s.totalPage = s.totalPage + len(result.TargetRequests)
+			s.totalPageMux.Unlock()
 		}
 		for j := 0; j < lenPipeline; j++ {
 			err = s.listPipeline[j].Process(result, ctx)
