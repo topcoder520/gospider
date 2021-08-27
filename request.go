@@ -1,6 +1,7 @@
 package gospider
 
 import (
+	"encoding/json"
 	"net/http"
 
 	uuid "github.com/satori/go.uuid"
@@ -14,7 +15,16 @@ type Request struct {
 	Downloader Downloader             //下载器
 	Extras     map[string]interface{} //额外信息
 	Skip       bool                   //跳过请求不处理
+	State      RequestState           //请求的状态
 }
+
+type RequestState string
+
+const (
+	RequestNormal  RequestState = "normal"
+	RequestSuccess RequestState = "success"
+	RequestError   RequestState = "error"
+)
 
 func NewRequest() Request {
 	u4 := uuid.NewV4()
@@ -23,5 +33,21 @@ func NewRequest() Request {
 		Method: http.MethodGet,
 		Header: map[string][]string{},
 		Extras: map[string]interface{}{},
+		State:  RequestNormal,
 	}
+}
+
+func RequestStringify(req Request) (string, error) {
+	req.Downloader = nil
+	b, err := json.Marshal(req)
+	if err != nil {
+		return "", err
+	}
+	return string(b), nil
+}
+
+func ParseRequest(str string) (*Request, error) {
+	req := &Request{}
+	err := json.Unmarshal([]byte(str), req)
+	return req, err
 }

@@ -3,6 +3,7 @@ package gospider
 import (
 	"encoding/json"
 	"fmt"
+	"net/url"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 func TestExample_1(t *testing.T) {
 	fmt.Println("start spider....")
 	spider := NewSpider("https://studygolang.com/pkgdoc")
+	spider.SaveHtml(true, "./data/html/")
 	spider.Run()
 }
 
@@ -172,4 +174,13 @@ func TestLevelDB3(t *testing.T) {
 		}
 	}
 
+}
+
+func TestExample_url(t *testing.T) {
+	u, err := url.Parse("http://192.168.1.32:8080")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	fmt.Println(u.Hostname())
 }

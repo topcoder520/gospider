@@ -1,26 +1,38 @@
-package data
+package gospider
 
 import (
 	"encoding/json"
-	"log"
+	"os"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
+//key-value存储数据
+type Store interface {
+	Add(key string, value string) error
+	BatchAdd(m map[string]string) error
+	Get(key string) (string, error)
+	Del(key string) error
+	List(prefix string, limit ...string) ([]string, error)
+	Clear() error
+}
+
+//Store的默认实现
 type LeveldbStore struct {
+	path   string
 	dataDB *leveldb.DB
 }
 
 func CreateLeveldbStore(path string) *LeveldbStore {
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
-		log.Println(err)
-		return nil
+		panic(err)
 	}
 	return &LeveldbStore{
 		dataDB: db,
+		path:   path,
 	}
 }
 
@@ -71,4 +83,9 @@ func (lvdb *LeveldbStore) List(prefix string, limit ...string) ([]string, error)
 		listReq = append(listReq, string(iter.Value()))
 	}
 	return listReq, nil
+}
+
+func (lvdb *LeveldbStore) Clear() error {
+	defer lvdb.dataDB.Close()
+	return os.RemoveAll(lvdb.path)
 }

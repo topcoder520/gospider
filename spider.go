@@ -8,11 +8,12 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path"
+	"path/filepath"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
-
-	"github.com/topcoder520/gospider/data"
 )
 
 type Spider struct {
@@ -29,8 +30,12 @@ type Spider struct {
 	listListener     []Listener          //程序监听器
 	PreHandleRequest RequestHandle       //执行请求前的请求处理
 	totalPage        int                 //爬取的总链接
-	totalPageMux     sync.RWMutex
-	store            data.Store //保存请求对象数据
+	totalPageMux     sync.RWMutex        //读写锁
+	listStore        []Store             //保存请求对象数据
+	selfStore        bool                //store是否是自定义
+	saveStorePath    string              //store保存地址，如果使用自定义的store，则该属性无效
+	saveHtml         bool                //是否把下载的html页面保存下来,默认不保存
+	saveHtmlPath     string              //html页面数据保存地址
 }
 
 //NewSpider 创建一个爬虫程序
@@ -48,6 +53,7 @@ func NewSpider(seedUrl ...string) *Spider {
 		isTimeOut:    true,
 		timeOut:      10 * time.Second,
 		listListener: make([]Listener, 0),
+		listStore:    make([]Store, 0, 1),
 	}
 	spider.checkUrls(seedUrl)
 	return spider
@@ -61,6 +67,14 @@ func (s *Spider) SetTimeOut(t time.Duration) {
 	} else {
 		s.timeOut = t
 	}
+}
+
+func (s *Spider) getDoman(u string) (string, error) {
+	urlObj, err := url.Parse(u)
+	if err != nil {
+		return "", err
+	}
+	return urlObj.Hostname(), nil
 }
 
 func (s *Spider) checkUrls(urls []string) {
@@ -136,6 +150,8 @@ func (s *Spider) AddListener(listener Listener) {
 	s.listListener = append(s.listListener, listener)
 }
 
+const StoreKey = "STORENAME"
+
 //initCompent init
 func (s *Spider) initCompent() {
 	if _, ok := s.header["User-Agent"]; !ok {
@@ -155,6 +171,8 @@ func (s *Spider) initCompent() {
 	s.scheduler.Push(s.initRequests...)
 	s.totalPage = len(s.initRequests)
 
+	s.listListener = append(s.listListener, &DefaultListener{spider: s})
+
 	if s.listHandler == nil {
 		s.listHandler = make([]Handler, 0, 1)
 		s.listHandler = append(s.listHandler, &ConsoleHandler{})
@@ -173,8 +191,49 @@ func (s *Spider) initCompent() {
 	if s.sleepTime == time.Second*0 {
 		s.sleepTime = time.Second * 2
 	}
-	if s.store == nil {
-		s.store = data.CreateLeveldbStore("./data/db")
+	if len(s.listStore) == 0 {
+		for _, req := range s.initRequests {
+			dbname, err := s.getDoman(req.Url)
+			if err != nil {
+				panic(err)
+			}
+			savePath := "./data/db/"
+			if len(strings.TrimSpace(s.saveStorePath)) > 0 {
+				savePath = s.saveStorePath
+			}
+			p := filepath.Join(savePath, filepath.Clean(dbname))
+			store := CreateLeveldbStore(p)
+			store.Add(StoreKey, dbname)
+			s.listStore = append(s.listStore, store)
+		}
+	} else {
+		s.selfStore = true
+	}
+}
+
+func (s *Spider) saveRequest(req *Request, state RequestState) {
+	for _, store := range s.listStore {
+		if !s.selfStore {
+			dbname, err := store.Get(StoreKey)
+			if err != nil {
+				log.Println("Store.Get err: ", err)
+				continue
+			}
+			doman, err := s.getDoman(req.Url)
+			if err != nil {
+				log.Println("getDoman err: ", err)
+				return
+			}
+			if dbname != doman {
+				continue
+			}
+		}
+		reqStr, err := RequestStringify(*req)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		store.Add(fmt.Sprintf("request-%s-%s", state, req.Id), reqStr)
 	}
 }
 
@@ -219,21 +278,22 @@ func (s *Spider) Run() {
 			for {
 				select {
 				case <-c.Done():
+					for req := range task {
+						s.saveRequest(&req, RequestNormal) //"NO" not downloaded
+					}
+					for s.scheduler.Len() > 0 {
+						req := s.scheduler.Poll()
+						s.saveRequest(&req, RequestNormal) //"NO" not downloaded
+					}
 					log.Printf("协程 %d 程序结束\n", index)
 					return
 				case <-interruptChan:
 					for req := range task {
-						reqStr, err := RequestStringify(req)
-						if err != nil {
-							s.store.Add(fmt.Sprintf("req-%s-%s", "NO", req.Id), reqStr)
-						}
+						s.saveRequest(&req, RequestNormal) //"NO" not downloaded
 					}
 					for s.scheduler.Len() > 0 {
 						req := s.scheduler.Poll()
-						reqStr, err := RequestStringify(req)
-						if err != nil {
-							s.store.Add(fmt.Sprintf("req-%s-%s", "NO", req.Id), reqStr)
-						}
+						s.saveRequest(&req, RequestNormal) //"NO" not downloaded
 					}
 					return
 				case req := <-task:
@@ -248,9 +308,6 @@ func (s *Spider) Run() {
 					err := s.handRequest(&req, c)
 					if s.listListener != nil && len(s.listListener) > 0 {
 						for _, listener := range s.listListener {
-							s.totalPageMux.RLock()
-							req.Extras["totalPage"] = s.totalPage
-							s.totalPageMux.RUnlock()
 							if err != nil {
 								listener.OnError(req, err, ctx)
 							} else {
@@ -264,8 +321,7 @@ func (s *Spider) Run() {
 					time.Sleep(s.sleepTime)
 				case <-time.After(s.timeOut):
 					if s.isTimeOut {
-						log.Printf("协程 %d 程序结束\n", index)
-						return
+						cancel()
 					}
 				}
 			}
@@ -322,10 +378,42 @@ func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
 			}
 		}
 	}
+	if s.saveHtml {
+		absPath, errr := filepath.Abs(filepath.Clean(s.saveHtmlPath))
+		if errr != nil {
+			return
+		}
+		os.MkdirAll(absPath, 0777)
+		p := filepath.Join(absPath, fmt.Sprintf("%s%d.html", path.Base(req.Url), time.Now().Unix()))
+		f, errr := os.Create(p)
+		if err != nil {
+			log.Println("save html Create file err: ", errr)
+			return
+		}
+		defer f.Close()
+		_, errr = f.WriteString(resp.Body)
+		if err != nil {
+			log.Println("save html WriteString err: ", errr)
+			return
+		}
+	}
 	return
 }
 
 //SetStoreDB 存储器 存储请求数据
-func (s *Spider) SetStoreDB(store data.Store) {
-	s.store = store
+func (s *Spider) SetStoreDB(store Store) {
+	s.listStore = append(s.listStore, store)
+}
+
+//SetStoreDBSavePath store存储地址，如果使用自定义的store，则设置无效
+func (s *Spider) SetStoreDBSavePath(path string) {
+	s.saveStorePath = path
+}
+
+//SaveHtml 是否保存html 默认false不保存
+//savepath保存地址
+//也可以在自定义的Handler处理器中自行实现保存逻辑
+func (s *Spider) SaveHtml(isSaveHtml bool, savepath string) {
+	s.saveHtml = isSaveHtml
+	s.saveHtmlPath = savepath
 }
