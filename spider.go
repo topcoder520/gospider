@@ -34,7 +34,7 @@ type Spider struct {
 	listStore        []Store             //保存请求对象数据
 	selfStore        bool                //store是否是自定义
 	saveStorePath    string              //store保存地址，如果使用自定义的store，则该属性无效
-	saveHtml         bool                //是否把下载的html页面保存下来,默认不保存
+	isSaveHtml       bool                //是否把下载的html页面保存下来,默认不保存
 	saveHtmlPath     string              //html页面数据保存地址
 }
 
@@ -378,7 +378,7 @@ func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
 			}
 		}
 	}
-	if s.saveHtml {
+	if s.isSaveHtml {
 		go func(p string, r Request, sp Response, c context.Context) {
 			select {
 			case <-c.Done():
@@ -423,6 +423,6 @@ func (s *Spider) SetStoreDBSavePath(path string) {
 //savepath保存地址
 //也可以在自定义的Handler处理器中自行实现保存逻辑
 func (s *Spider) SaveHtml(isSaveHtml bool, savepath string) {
-	s.saveHtml = isSaveHtml
+	s.isSaveHtml = isSaveHtml
 	s.saveHtmlPath = savepath
 }
