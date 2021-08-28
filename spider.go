@@ -379,23 +379,32 @@ func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
 		}
 	}
 	if s.saveHtml {
-		absPath, errr := filepath.Abs(filepath.Clean(s.saveHtmlPath))
-		if errr != nil {
-			return
-		}
-		os.MkdirAll(absPath, 0777)
-		p := filepath.Join(absPath, fmt.Sprintf("%s%d.html", path.Base(req.Url), time.Now().Unix()))
-		f, errr := os.Create(p)
-		if err != nil {
-			log.Println("save html Create file err: ", errr)
-			return
-		}
-		defer f.Close()
-		_, errr = f.WriteString(resp.Body)
-		if err != nil {
-			log.Println("save html WriteString err: ", errr)
-			return
-		}
+		go func(p string, r Request, sp Response, c context.Context) {
+			select {
+			case <-c.Done():
+				return
+			default:
+				doman, _ := s.getDoman(req.Url)
+				absPath, errr := filepath.Abs(filepath.Clean(p))
+				if errr != nil {
+					return
+				}
+				absPath = filepath.Join(absPath, doman)
+				os.MkdirAll(absPath, 0777)
+				fp := filepath.Join(absPath, fmt.Sprintf("%s-%d.html", path.Base(r.Url), time.Now().Unix()))
+				f, errr := os.Create(fp)
+				if err != nil {
+					log.Println("save html Create file err: ", errr)
+					return
+				}
+				defer f.Close()
+				_, errr = f.WriteString(sp.Body)
+				if err != nil {
+					log.Println("save html WriteString err: ", errr)
+					return
+				}
+			}
+		}(s.saveHtmlPath, *req, *resp, ctx)
 	}
 	return
 }

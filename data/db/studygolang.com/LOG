@@ -160,3 +160,72 @@
 00:20:39.237925 version@stat F·[1 1] S·278B[139B 139B] Sc·[0.25 0.00]
 00:20:39.327231 db@janitor F·4 G·0
 00:20:39.327337 db@open done T·136.71666ms
+=============== Aug 28, 2021 (CST) ===============
+10:23:02.885533 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+10:23:02.921557 version@stat F·[1 1] S·278B[139B 139B] Sc·[0.25 0.00]
+10:23:02.921557 db@open opening
+10:23:02.921557 journal@recovery F·1
+10:23:02.962586 journal@recovery recovering @42
+10:23:03.024630 memdb@flush created L0@44 N·1 S·139B "STO..AME,v27":"STO..AME,v27"
+10:23:03.025631 version@stat F·[2 1] S·417B[278B 139B] Sc·[0.50 0.00]
+10:23:03.099686 db@janitor F·5 G·0
+10:23:03.099686 db@open done T·178.1285ms
+=============== Aug 28, 2021 (CST) ===============
+10:30:00.148316 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+10:30:00.158322 version@stat F·[2 1] S·417B[278B 139B] Sc·[0.50 0.00]
+10:30:00.158322 db@open opening
+10:30:00.158322 journal@recovery F·1
+10:30:00.183340 journal@recovery recovering @45
+10:30:00.278225 memdb@flush created L0@47 N·1 S·139B "STO..AME,v29":"STO..AME,v29"
+10:30:00.281228 version@stat F·[3 1] S·556B[417B 139B] Sc·[0.75 0.00]
+10:30:00.369495 db@janitor F·6 G·0
+10:30:00.369495 db@open done T·211.1726ms
+=============== Aug 28, 2021 (CST) ===============
+10:32:40.008635 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+10:32:40.016640 version@stat F·[3 1] S·556B[417B 139B] Sc·[0.75 0.00]
+10:32:40.017641 db@open opening
+10:32:40.017641 journal@recovery F·1
+10:32:40.028647 journal@recovery recovering @48
+10:32:40.069677 memdb@flush created L0@50 N·1 S·139B "STO..AME,v31":"STO..AME,v31"
+10:32:40.070677 version@stat F·[4 1] S·695B[556B 139B] Sc·[1.00 0.00]
+10:32:40.163743 db@janitor F·7 G·0
+10:32:40.163743 db@open done T·146.1021ms
+10:32:40.163743 table@compaction L0·4 -> L1·1 S·695B Q·32
+10:32:40.210789 table@build created L1@53 N·1 S·139B "STO..AME,v31":"STO..AME,v31"
+10:32:40.210789 version@stat F·[0 1] S·139B[0B 139B] Sc·[0.00 0.00]
+10:32:40.242798 table@compaction committed F-4 S-556B Ke·0 D·4 T·79.055ms
+10:32:40.242798 table@remove removed @50
+10:32:40.243799 table@remove removed @47
+10:32:40.243799 table@remove removed @44
+10:32:40.243799 table@remove removed @41
+10:32:40.243799 table@remove removed @40
+=============== Aug 28, 2021 (CST) ===============
+10:33:24.555259 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+10:33:24.564264 version@stat F·[0 1] S·139B[0B 139B] Sc·[0.00 0.00]
+10:33:24.564264 db@open opening
+10:33:24.564264 journal@recovery F·1
+10:33:24.575281 journal@recovery recovering @51
+10:33:24.610983 memdb@flush created L0@54 N·1 S·139B "STO..AME,v33":"STO..AME,v33"
+10:33:24.612981 version@stat F·[1 1] S·278B[139B 139B] Sc·[0.25 0.00]
+10:33:24.684180 db@janitor F·4 G·0
+10:33:24.684180 db@open done T·119.9155ms
+=============== Aug 28, 2021 (CST) ===============
+10:38:03.725481 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+10:38:03.734502 version@stat F·[1 1] S·278B[139B 139B] Sc·[0.25 0.00]
+10:38:03.734502 db@open opening
+10:38:03.735506 journal@recovery F·1
+10:38:03.743494 journal@recovery recovering @55
+10:38:03.797584 memdb@flush created L0@57 N·1 S·139B "STO..AME,v35":"STO..AME,v35"
+10:38:03.799580 version@stat F·[2 1] S·417B[278B 139B] Sc·[0.50 0.00]
+10:38:03.883674 db@janitor F·5 G·0
+10:38:03.884674 db@open done T·150.1724ms
+=============== Aug 28, 2021 (CST) ===============
+10:40:38.274232 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+10:40:38.284241 version@stat F·[2 1] S·417B[278B 139B] Sc·[0.50 0.00]
+10:40:38.284241 db@open opening
+10:40:38.284241 journal@recovery F·1
+10:40:38.298249 journal@recovery recovering @58
+10:40:38.340282 memdb@flush created L0@60 N·1 S·139B "STO..AME,v37":"STO..AME,v37"
+10:40:38.341282 version@stat F·[3 1] S·556B[417B 139B] Sc·[0.75 0.00]
+10:40:38.410521 db@janitor F·6 G·0
+10:40:38.410521 db@open done T·126.2798ms
