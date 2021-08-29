@@ -22,15 +22,29 @@ type LeveldbStore struct {
 	dataDB *leveldb.DB
 }
 
+var alreadyOpenDB map[string]LeveldbStore
+
+func init() {
+	alreadyOpenDB = make(map[string]LeveldbStore)
+}
+
 func CreateLeveldbStore(path string) *LeveldbStore {
+	if len(alreadyOpenDB) > 0 {
+		db, ok := alreadyOpenDB[path]
+		if ok {
+			return &db
+		}
+	}
 	db, err := leveldb.OpenFile(path, nil)
 	if err != nil {
 		panic(err)
 	}
-	return &LeveldbStore{
+	levelDB := &LeveldbStore{
 		dataDB: db,
 		path:   path,
 	}
+	alreadyOpenDB[path] = *levelDB
+	return levelDB
 }
 
 func (lvdb *LeveldbStore) Get(key string) (string, error) {

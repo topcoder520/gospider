@@ -64,7 +64,7 @@ func (d *HttpDownloader) Download(request *Request, ctx context.Context) (r *Res
 	if err != nil {
 		return
 	}
-	r.Body = string(b)
+	r.Body = b
 	request.State = RequestSuccess
 	return
 }

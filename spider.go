@@ -37,13 +37,13 @@ type Spider struct {
 	requestFilter    RequestFilter       //过滤重复请求
 	isClearStoreDB   bool                //是否清空存储的数据
 	suffixGenerate   func() string       //名字的后缀生成函数
+	byteHandler      ByteHandler         //字节处理
 }
 
 //NewSpider 创建一个爬虫程序
 //seedUrl 种子Url
 func NewSpider(seedUrl ...string) *Spider {
 	spider := &Spider{
-		downloader:   NewDownloader(),
 		scheduler:    &RequestScheduler{},
 		listHandler:  make([]Handler, 0),
 		listPipeline: make([]Pipeline, 0),
@@ -154,6 +154,11 @@ func (s *Spider) AddListener(listener Listener) {
 //SetRequestFilter 设置请求过滤器
 func (s *Spider) SetRequestFilter(filter RequestFilter) {
 	s.requestFilter = filter
+}
+
+//SetByteHandler 设置字节处理器 对下载的字节进行处理
+func (s *Spider) SetByteHandler(handler ByteHandler) {
+	s.byteHandler = handler
 }
 
 const StoreKey = "STORENAME"
@@ -400,6 +405,16 @@ func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
 	lenPipeline := len(s.listPipeline)
 	for i := 0; i < lenHandle; i++ {
 		result := &Result{make([]Request, 0), make(map[string]interface{})}
+		//处理字节
+		if s.byteHandler != nil {
+			handleByte, err := s.byteHandler.Handle(resp.Body)
+			if err != nil {
+				log.Println("byteHandler.Handle err: ", err)
+			} else {
+				resp.Body = handleByte
+			}
+		}
+		//处理响应
 		err = s.listHandler[i].Handle(*resp, result, ctx)
 		if err != nil {
 			if err == ErrorSkip {
@@ -454,7 +469,7 @@ func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
 					return
 				}
 				defer f.Close()
-				_, errr = f.WriteString(sp.Body)
+				_, errr = f.Write(sp.Body)
 				if err != nil {
 					log.Println("save html WriteString err: ", errr)
 					return
@@ -484,8 +499,8 @@ func (s *Spider) SetStoreDBSavePath(path string) {
 //savepath保存地址
 //也可以在自定义的Handler处理器中自行实现保存逻辑
 //suffixGenerate 名字后缀函数,html存储名字和生成的后缀拼接
-func (s *Spider) SaveHtml(isSaveHtml bool, savepath string, suffixGenerate func() string) {
-	s.isSaveHtml = isSaveHtml
+func (s *Spider) SaveHtml(savepath string, suffixGenerate func() string) {
+	s.isSaveHtml = true
 	s.saveHtmlPath = savepath
 	s.suffixGenerate = suffixGenerate
 }

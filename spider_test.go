@@ -17,7 +17,7 @@ func TestExample_1(t *testing.T) {
 	spider := NewSpider("https://www.w3school.com.cn/tags/tag_html.asp")
 	spider.ClearStoreDB()
 	//spider.SaveHtml(true, "./data/html/", nil)
-	spider.SaveHtml(true, "./data/html/", func() string {
+	spider.SaveHtml("./data/html/", func() string {
 		return ".html"
 	})
 	spider.Run()
@@ -44,6 +44,7 @@ func TestExample_dbname(t *testing.T) {
 func TestExample_2(t *testing.T) {
 	fmt.Println("start spider....")
 	spider := NewSpider("https://studygolang.com/pkgdoc")
+	spider.ClearStoreDB()
 	spider.SetTimeOut(10 * time.Second) //10s 后退出
 	spider.AddSeedUrl("https://studygolang.com/pkgdoc")
 	spider.SetSleepTime(1 * time.Second)
@@ -206,4 +207,12 @@ func TestExample_url(t *testing.T) {
 		return
 	}
 	fmt.Println(u.Hostname())
+}
+
+func TestBiquge(t *testing.T) {
+	spider := NewSpider("https://www.duquanben.com/")
+	spider.ClearStoreDB()
+	spider.SetByteHandler(&GBKByteHandler{})
+	//spider.SaveHtml("./data/html", nil)
+	spider.Run()
 }
