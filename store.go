@@ -1,9 +1,6 @@
 package gospider
 
 import (
-	"encoding/json"
-	"os"
-
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/iterator"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -16,7 +13,7 @@ type Store interface {
 	Get(key string) (string, error)
 	Del(key string) error
 	List(prefix string, limit ...string) ([]string, error)
-	Clear() error
+	Clear(prefix string, limit ...string)
 }
 
 //Store的默认实现
@@ -41,18 +38,11 @@ func (lvdb *LeveldbStore) Get(key string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	if err != nil {
-		return "", err
-	}
 	return string(reqByte), nil
 }
 
 func (lvdb *LeveldbStore) Add(key string, value string) error {
-	b, err := json.Marshal(value)
-	if err != nil {
-		return err
-	}
-	return lvdb.dataDB.Put([]byte(key), b, nil)
+	return lvdb.dataDB.Put([]byte(key), []byte(value), nil)
 }
 
 func (lvdb *LeveldbStore) BatchAdd(m map[string]string) error {
@@ -85,7 +75,15 @@ func (lvdb *LeveldbStore) List(prefix string, limit ...string) ([]string, error)
 	return listReq, nil
 }
 
-func (lvdb *LeveldbStore) Clear() error {
-	defer lvdb.dataDB.Close()
-	return os.RemoveAll(lvdb.path)
+func (lvdb *LeveldbStore) Clear(prefix string, limit ...string) {
+	var iter iterator.Iterator = nil
+	if len(limit) > 0 {
+		iter = lvdb.dataDB.NewIterator(&util.Range{Start: []byte(prefix), Limit: []byte(limit[0])}, nil)
+	} else {
+		iter = lvdb.dataDB.NewIterator(util.BytesPrefix([]byte(prefix)), nil)
+	}
+	defer iter.Release()
+	for iter.Next() {
+		lvdb.dataDB.Delete(iter.Key(), nil)
+	}
 }

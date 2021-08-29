@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/url"
+	"path"
 	"testing"
 	"time"
 
@@ -13,9 +14,31 @@ import (
 
 func TestExample_1(t *testing.T) {
 	fmt.Println("start spider....")
-	spider := NewSpider("https://studygolang.com/pkgdoc")
-	spider.SaveHtml(true, "./data/html/")
+	spider := NewSpider("https://www.w3school.com.cn/tags/tag_html.asp")
+	spider.ClearStoreDB()
+	//spider.SaveHtml(true, "./data/html/", nil)
+	spider.SaveHtml(true, "./data/html/", func() string {
+		return ".html"
+	})
 	spider.Run()
+}
+
+func TestExample_path(t *testing.T) {
+	p := "www/kl.html"
+	fmt.Println(path.Ext(p))
+	fmt.Println(path.Base(p))
+}
+
+func TestExample_dbname(t *testing.T) {
+	db, err := leveldb.OpenFile("./data/db/studygolang.com/", nil)
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	defer db.Close()
+	data, err := db.Get([]byte(StoreKey), nil)
+	fmt.Println(err)
+	fmt.Printf("[studygolang.com]:%s\n", string(data))
 }
 
 func TestExample_2(t *testing.T) {

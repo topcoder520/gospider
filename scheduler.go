@@ -19,6 +19,9 @@ type RequestScheduler struct {
 func (s *RequestScheduler) Push(reqs ...Request) {
 	s.mux.Lock()
 	defer s.mux.Unlock()
+	if len(reqs) == 0 {
+		return
+	}
 	if s.requests == nil {
 		s.requests = make([]Request, 0, len(reqs))
 	}

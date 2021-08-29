@@ -29,13 +29,14 @@ type Spider struct {
 	isTimeOut        bool                //没有数据的情况下是否自动退出，默认true
 	listListener     []Listener          //程序监听器
 	PreHandleRequest RequestHandle       //执行请求前的请求处理
-	totalPage        int                 //爬取的总链接
-	totalPageMux     sync.RWMutex        //读写锁
 	listStore        []Store             //保存请求对象数据
 	selfStore        bool                //store是否是自定义
 	saveStorePath    string              //store保存地址，如果使用自定义的store，则该属性无效
 	isSaveHtml       bool                //是否把下载的html页面保存下来,默认不保存
 	saveHtmlPath     string              //html页面数据保存地址
+	requestFilter    RequestFilter       //过滤重复请求
+	isClearStoreDB   bool                //是否清空存储的数据
+	suffixGenerate   func() string       //名字的后缀生成函数
 }
 
 //NewSpider 创建一个爬虫程序
@@ -150,6 +151,11 @@ func (s *Spider) AddListener(listener Listener) {
 	s.listListener = append(s.listListener, listener)
 }
 
+//SetRequestFilter 设置请求过滤器
+func (s *Spider) SetRequestFilter(filter RequestFilter) {
+	s.requestFilter = filter
+}
+
 const StoreKey = "STORENAME"
 
 //initCompent init
@@ -168,8 +174,6 @@ func (s *Spider) initCompent() {
 	if len(s.initRequests) == 0 {
 		panic("seed url can not empty")
 	}
-	s.scheduler.Push(s.initRequests...)
-	s.totalPage = len(s.initRequests)
 
 	s.listListener = append(s.listListener, &DefaultListener{spider: s})
 
@@ -203,11 +207,52 @@ func (s *Spider) initCompent() {
 			}
 			p := filepath.Join(savePath, filepath.Clean(dbname))
 			store := CreateLeveldbStore(p)
+			if s.isClearStoreDB {
+				store.Clear("")
+			}
 			store.Add(StoreKey, dbname)
 			s.listStore = append(s.listStore, store)
 		}
 	} else {
 		s.selfStore = true
+	}
+	if s.requestFilter == nil {
+		requestFilter := &StoreRequestFilter{
+			mapRequest: make(map[string]Request),
+		}
+		for _, store := range s.listStore {
+			listRequest, err := store.List("request-")
+			if err != nil {
+				log.Println("store.List err: ", err)
+				continue
+			}
+			for _, reqStr := range listRequest {
+				req, err := ParseRequest(reqStr)
+				if err != nil {
+					log.Println("ParseRequest err", err)
+					continue
+				}
+				requestFilter.mapRequest[req.Url] = *req
+			}
+		}
+		s.requestFilter = requestFilter
+	}
+	//
+	s.scheduler.Push(s.requestFilter.Filter(s.initRequests...)...)
+	for _, store := range s.listStore {
+		listRequest, err := store.List(fmt.Sprintf("request-%s", RequestNormal))
+		if err != nil {
+			log.Println("store.List err: ", err)
+			continue
+		}
+		for _, reqStr := range listRequest {
+			req, err := ParseRequest(reqStr)
+			if err != nil {
+				log.Println("ParseRequest err", err)
+				continue
+			}
+			s.scheduler.Push(*req)
+		}
 	}
 }
 
@@ -363,10 +408,8 @@ func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
 			return
 		}
 		if result.TargetRequests != nil && len(result.TargetRequests) > 0 {
-			s.scheduler.Push(result.TargetRequests...)
-			s.totalPageMux.Lock()
-			s.totalPage = s.totalPage + len(result.TargetRequests)
-			s.totalPageMux.Unlock()
+			reqs := s.requestFilter.Filter(result.TargetRequests...)
+			s.scheduler.Push(reqs...)
 		}
 		for j := 0; j < lenPipeline; j++ {
 			err = s.listPipeline[j].Process(result, ctx)
@@ -391,8 +434,21 @@ func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
 				}
 				absPath = filepath.Join(absPath, doman)
 				os.MkdirAll(absPath, 0777)
-				fp := filepath.Join(absPath, fmt.Sprintf("%s-%d.html", path.Base(r.Url), time.Now().Unix()))
-				f, errr := os.Create(fp)
+
+				if s.suffixGenerate != nil {
+					baseName := path.Base(r.Url)
+					ext := path.Ext(baseName)
+					if ext != "" {
+						index := strings.LastIndex(baseName, ext)
+						baseName = baseName[0:index]
+					}
+					suffix := s.suffixGenerate()
+					absPath = path.Join(absPath, fmt.Sprintf("%s%s", baseName, suffix))
+				} else {
+					absPath = path.Join(absPath, path.Base(r.Url))
+				}
+
+				f, errr := os.Create(absPath)
 				if err != nil {
 					log.Println("save html Create file err: ", errr)
 					return
@@ -410,11 +466,16 @@ func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
 }
 
 //SetStoreDB 存储器 存储请求数据
-func (s *Spider) SetStoreDB(store Store) {
+func (s *Spider) AddStoreDB(store Store) {
 	s.listStore = append(s.listStore, store)
 }
 
-//SetStoreDBSavePath store存储地址，如果使用自定义的store，则设置无效
+//Clear 清楚存储的数据
+func (s *Spider) ClearStoreDB() {
+	s.isClearStoreDB = true
+}
+
+//SetStoreDBSavePath store存储地址，如果使用AddStoreDB自定义的store，则设置存储地址无效
 func (s *Spider) SetStoreDBSavePath(path string) {
 	s.saveStorePath = path
 }
@@ -422,7 +483,9 @@ func (s *Spider) SetStoreDBSavePath(path string) {
 //SaveHtml 是否保存html 默认false不保存
 //savepath保存地址
 //也可以在自定义的Handler处理器中自行实现保存逻辑
-func (s *Spider) SaveHtml(isSaveHtml bool, savepath string) {
+//suffixGenerate 名字后缀函数,html存储名字和生成的后缀拼接
+func (s *Spider) SaveHtml(isSaveHtml bool, savepath string, suffixGenerate func() string) {
 	s.isSaveHtml = isSaveHtml
 	s.saveHtmlPath = savepath
+	s.suffixGenerate = suffixGenerate
 }
