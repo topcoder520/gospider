@@ -51,6 +51,13 @@ func (d *HttpDownloader) Download(request *Request, ctx context.Context) (r *Res
 		return
 	}
 	req.Header = http.Header(request.Header)
+	for k, v := range request.Header {
+		if strings.ToLower(k) == "host" {
+			if len(v) > 0 {
+				req.Host = v[0]
+			}
+		}
+	}
 	resp, err := d.HttpClient.Do(req)
 	if err != nil {
 		return

@@ -356,6 +356,9 @@ func (s *Spider) Run() {
 						return
 					}
 					err := s.handRequest(&req, c)
+					if err != nil {
+						log.Println("handle request err: ", err)
+					}
 					if s.listListener != nil && len(s.listListener) > 0 {
 						for _, listener := range s.listListener {
 							if err != nil {
@@ -364,9 +367,6 @@ func (s *Spider) Run() {
 								listener.OnSuccess(req, ctx)
 							}
 						}
-					}
-					if err != nil {
-						log.Println("handle request err: ", err)
 					}
 					time.Sleep(s.sleepTime)
 				case <-time.After(s.timeOut):

@@ -18,6 +18,18 @@ type Request struct {
 	State      RequestState           //请求的状态
 }
 
+func (req *Request) GetExtras(key string) interface{} {
+	v, ok := req.Extras[key]
+	if ok {
+		return v
+	}
+	return nil
+}
+
+func (req *Request) AddExtras(key string, value interface{}) {
+	req.Extras[key] = value
+}
+
 type RequestState string
 
 const (
@@ -34,6 +46,7 @@ func NewRequest() Request {
 		Header: map[string][]string{},
 		Extras: map[string]interface{}{},
 		State:  RequestNormal,
+		Skip:   false,
 	}
 }
 
