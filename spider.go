@@ -401,19 +401,20 @@ func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
 	if err != nil {
 		return
 	}
+	//处理字节
+	if s.byteHandler != nil {
+		handleByte, err := s.byteHandler.Handle(resp.Body)
+		if err != nil {
+			log.Println("byteHandler.Handle err: ", err)
+		} else {
+			resp.Body = handleByte
+		}
+	}
+
 	lenHandle := len(s.listHandler)
 	lenPipeline := len(s.listPipeline)
 	for i := 0; i < lenHandle; i++ {
 		result := &Result{make([]Request, 0), make(map[string]interface{})}
-		//处理字节
-		if s.byteHandler != nil {
-			handleByte, err := s.byteHandler.Handle(resp.Body)
-			if err != nil {
-				log.Println("byteHandler.Handle err: ", err)
-			} else {
-				resp.Body = handleByte
-			}
-		}
 		//处理响应
 		err = s.listHandler[i].Handle(*resp, result, ctx)
 		if err != nil {

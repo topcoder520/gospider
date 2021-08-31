@@ -240,7 +240,7 @@ func (h *BookHandler) Handle(resp Response, handleResult *Result, ctx context.Co
 	if strings.HasSuffix(resp.Request.Url, ".html") {
 		return ErrorSkip
 	}
-
+	fmt.Println(string(resp.Request.Url))
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(resp.Body))
 	if err != nil {
 		log.Fatal(err)
@@ -267,7 +267,7 @@ func (h *BookHandler) Handle(resp Response, handleResult *Result, ctx context.Co
 		chapterUri, exits := s.Attr("href")
 		if exits {
 			request := NewRequest()
-			request.Url = path.Join(book.Url, chapterUri)
+			request.Url = book.Url + chapterUri
 			request.Extras["title"] = chapter
 			request.Extras["bookTitle"] = book.Title
 			request.Extras["bookId"] = book.Id
@@ -301,6 +301,7 @@ func (h *ChapterHandler) Handle(resp Response, handleResult *Result, ctx context
 	if !strings.HasSuffix(resp.Request.Url, ".html") {
 		return ErrorSkip
 	}
+	fmt.Println(string(resp.Request.Url))
 	doc, err := goquery.NewDocumentFromReader(bytes.NewReader(resp.Body))
 	if err != nil {
 		log.Fatal(err)
@@ -311,6 +312,9 @@ func (h *ChapterHandler) Handle(resp Response, handleResult *Result, ctx context
 	chapter.Content = doc.Find("div#content").Text()
 	rex := regexp.MustCompile(`(第(\d+)/(\d+))页`)
 	arr := rex.FindStringSubmatch(chapter.Title)
+	if len(arr) == 0 {
+		return ErrorSkip
+	}
 	chapter.PageIndex = arr[2]
 	chapter.TotalPage = arr[3]
 	bookTitleInf := resp.Request.GetExtras("bookTitle")
@@ -332,7 +336,7 @@ func (h *ChapterHandler) Handle(resp Response, handleResult *Result, ctx context
 		index := strings.LastIndex(baseName, ext)
 		baseName = baseName[0 : index-1]
 		baseName = fmt.Sprintf("%s_%d%s", baseName, (intPageIndex + 1), ext)
-		curl := path.Join(chapter.Url[0:(strings.LastIndex(chapter.Url, "/"))], baseName)
+		curl := chapter.Url[0:(strings.LastIndex(chapter.Url, "/")+1)] + baseName
 		request := NewRequest()
 		request.Extras["title"] = chapter.Title
 		request.Extras["bookTitle"] = chapter.BookTitle
@@ -375,6 +379,7 @@ func (p *BookPipeline) Process(handleResult *Result, ctx context.Context) error 
 		for _, sotre := range p.spider.listStore {
 			sotre.Add(fmt.Sprintf("book-%s", book.Id), bookstr)
 		}
+		return nil
 	}
 	chapterInf, ok := handleResult.TargetItems["chapter"]
 	if ok {
@@ -384,7 +389,7 @@ func (p *BookPipeline) Process(handleResult *Result, ctx context.Context) error 
 			return err
 		}
 		for _, sotre := range p.spider.listStore {
-			sotre.Add(fmt.Sprintf("book-%s-%s-%s", chapter.BookId, chapter.Title, chapter.PageIndex), chapterstr)
+			sotre.Add(fmt.Sprintf("book-chapter-%s-%s-%s", chapter.BookId, chapter.Title, chapter.PageIndex), chapterstr)
 		}
 	}
 	return nil
@@ -396,16 +401,33 @@ func TestBiquge(t *testing.T) {
 	spider.AddHeader("Host", "www.bqg74.com")
 	spider.AddHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
 	spider.AddHeader("Cookie", "Hm_lvt_15ab8d1f6950da8c0dd49a424be8cbdb=1630327189; Hm_lpvt_15ab8d1f6950da8c0dd49a424be8cbdb=1630339530")
-	//spider.AddHeader()
-	spider.ClearStoreDB()
+	//spider.ClearStoreDB()
 	spider.SetByteHandler(&GBKByteHandler{})
-	spider.SetGoroutines(3)
+	spider.SetGoroutines(5)
 	spider.SetSleepTime(2 * time.Second)
 	//spider.SaveHtml("./data/html", nil)
 	spider.AddHandler(&BookHandler{})
 	spider.AddHandler(&ChapterHandler{})
 	spider.AddPipeline(&BookPipeline{spider: spider})
 	spider.Run()
+}
+
+func ParseBook(str string) (*Book, error) {
+	book := &Book{}
+	err := json.Unmarshal([]byte(str), book)
+	return book, err
+}
+
+func TestBiqugeStore(t *testing.T) {
+	levelStore := CreateLeveldbStore("./data/db/www.bqg74.com")
+	listBook, err := levelStore.List("book-")
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	for _, str := range listBook {
+		fmt.Println(str)
+	}
 }
 
 func TestRegex(t *testing.T) {
@@ -422,7 +444,7 @@ func TestRegex(t *testing.T) {
 
 func TestRegex2(t *testing.T) {
 	title := "第000章 天空一声雷响，老子闪亮登场！(第2/08页)"
-	isMatch, err := regexp.MatchString(`(第(\d+)/(\d+))页`, title)
+	isMatch, err := regexp.MatchString(`(第(\d+)/(\d+)页)`, title)
 	if err == nil && isMatch {
 		fmt.Println("匹配成功")
 	}
