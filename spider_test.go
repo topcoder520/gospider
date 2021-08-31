@@ -376,7 +376,7 @@ func (p *BookPipeline) Process(handleResult *Result, ctx context.Context) error 
 		if err != nil {
 			return err
 		}
-		for _, sotre := range p.spider.listStore {
+		for _, sotre := range p.spider.RequestsStore {
 			sotre.Add(fmt.Sprintf("book-%s", book.Id), bookstr)
 		}
 		return nil
@@ -388,7 +388,7 @@ func (p *BookPipeline) Process(handleResult *Result, ctx context.Context) error 
 		if err != nil {
 			return err
 		}
-		for _, sotre := range p.spider.listStore {
+		for _, sotre := range p.spider.RequestsStore {
 			sotre.Add(fmt.Sprintf("book-chapter-%s-%s-%s", chapter.BookId, chapter.Title, chapter.PageIndex), chapterstr)
 		}
 	}
@@ -419,7 +419,9 @@ func ParseBook(str string) (*Book, error) {
 }
 
 func TestBiqugeStore(t *testing.T) {
-	levelStore := CreateLeveldbStore("./data/db/www.bqg74.com")
+	levelStore := RequestStore{}
+	path := "./data/db/www.bqg74.com"
+	levelStore.dataDB = CreateDataDB(path)
 	listBook, err := levelStore.List("book-")
 	if err != nil {
 		log.Println(err)

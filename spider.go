@@ -17,44 +17,44 @@ import (
 )
 
 type Spider struct {
-	downloader       Downloader          //下载器 负责下载网页
-	listHandler      []Handler           //处理器 负责处理网页
-	listPipeline     []Pipeline          //管道 负责持久化数据或者下载资源的任务
-	scheduler        Scheduler           //调度器 负责待爬取的url的管理
-	sleepTime        time.Duration       //控制访问的速度，单个协程每执行一次沉睡sleepTime
-	goroutines       int                 //开启协程数量
-	header           map[string][]string //设置请求头
-	initRequests     []Request           //种子url
-	timeOut          time.Duration       //没有数据的情况下，程序结束运行的时间
-	isTimeOut        bool                //没有数据的情况下是否自动退出，默认true
-	listListener     []Listener          //程序监听器
-	PreHandleRequest RequestHandle       //执行请求前的请求处理
-	listStore        []Store             //保存请求对象数据
-	selfStore        bool                //store是否是自定义
-	saveStorePath    string              //store保存地址，如果使用自定义的store，则该属性无效
-	isSaveHtml       bool                //是否把下载的html页面保存下来,默认不保存
-	saveHtmlPath     string              //html页面数据保存地址
-	requestFilter    RequestFilter       //过滤重复请求
-	isClearStoreDB   bool                //是否清空存储的数据
-	suffixGenerate   func() string       //名字的后缀生成函数
-	byteHandler      ByteHandler         //字节处理
+	downloader     Downloader          //下载器 负责下载网页
+	listHandler    []Handler           //处理器 负责处理网页
+	listPipeline   []Pipeline          //管道 负责持久化数据或者下载资源的任务
+	scheduler      Scheduler           //调度器 负责待爬取的url的管理
+	sleepTime      time.Duration       //控制访问的速度，单个协程每执行一次沉睡sleepTime
+	goroutines     int                 //开启协程数量
+	header         map[string][]string //设置请求头
+	initRequests   []Request           //种子url
+	timeOut        time.Duration       //没有数据的情况下，程序结束运行的时间
+	isTimeOut      bool                //没有数据的情况下是否自动退出，默认true
+	listListener   []Listener          //程序监听器
+	selfStore      bool                //store是否是自定义
+	isSaveHtml     bool                //是否把下载的html页面保存下来,默认不保存
+	saveHtmlPath   string              //html页面数据保存地址
+	requestFilter  RequestFilter       //过滤重复请求
+	isClearStoreDB bool                //是否清空存储的数据
+	suffixGenerate func() string       //名字的后缀生成函数
+	byteHandler    ByteHandler         //字节处理
+
+	RequestsStore    []Store       //保存请求对象数据
+	PreHandleRequest RequestHandle //执行请求前的请求处理
 }
 
 //NewSpider 创建一个爬虫程序
 //seedUrl 种子Url
 func NewSpider(seedUrl ...string) *Spider {
 	spider := &Spider{
-		scheduler:    &RequestScheduler{},
-		listHandler:  make([]Handler, 0),
-		listPipeline: make([]Pipeline, 0),
-		sleepTime:    time.Second * 1, //默认1s
-		goroutines:   1,               //默认开1个
-		header:       make(map[string][]string),
-		initRequests: make([]Request, 0),
-		isTimeOut:    true,
-		timeOut:      10 * time.Second,
-		listListener: make([]Listener, 0),
-		listStore:    make([]Store, 0, 1),
+		scheduler:     &RequestScheduler{},
+		listHandler:   make([]Handler, 0),
+		listPipeline:  make([]Pipeline, 0),
+		sleepTime:     time.Second * 1, //默认1s
+		goroutines:    1,               //默认开1个
+		header:        make(map[string][]string),
+		initRequests:  make([]Request, 0),
+		isTimeOut:     true,
+		timeOut:       10 * time.Second,
+		listListener:  make([]Listener, 0),
+		RequestsStore: make([]Store, 0, 1),
 	}
 	spider.checkUrls(seedUrl)
 	return spider
@@ -200,24 +200,11 @@ func (s *Spider) initCompent() {
 	if s.sleepTime == time.Second*0 {
 		s.sleepTime = time.Second * 2
 	}
-	if len(s.listStore) == 0 {
-		for _, req := range s.initRequests {
-			dbname, err := s.getDoman(req.Url)
-			if err != nil {
-				panic(err)
-			}
-			savePath := "./data/db/"
-			if len(strings.TrimSpace(s.saveStorePath)) > 0 {
-				savePath = s.saveStorePath
-			}
-			p := filepath.Join(savePath, filepath.Clean(dbname))
-			store := CreateLeveldbStore(p)
-			if s.isClearStoreDB {
-				store.Clear("")
-			}
-			store.Add(StoreKey, dbname)
-			s.listStore = append(s.listStore, store)
-		}
+	if len(s.RequestsStore) == 0 {
+		dataPath := "./data/db/requestdb/" //默认地址
+		reqStore := &RequestStore{}
+		reqStore.dataDB = CreateDataDB(dataPath)
+		s.RequestsStore = append(s.RequestsStore, reqStore)
 	} else {
 		s.selfStore = true
 	}
@@ -225,7 +212,7 @@ func (s *Spider) initCompent() {
 		requestFilter := &StoreRequestFilter{
 			mapRequest: make(map[string]Request),
 		}
-		for _, store := range s.listStore {
+		for _, store := range s.RequestsStore {
 			listRequest, err := store.List("request-")
 			if err != nil {
 				log.Println("store.List err: ", err)
@@ -244,7 +231,7 @@ func (s *Spider) initCompent() {
 	}
 	//
 	s.scheduler.Push(s.requestFilter.Filter(s.initRequests...)...)
-	for _, store := range s.listStore {
+	for _, store := range s.RequestsStore {
 		listRequest, err := store.List(fmt.Sprintf("request-%s", RequestNormal))
 		if err != nil {
 			log.Println("store.List err: ", err)
@@ -262,7 +249,7 @@ func (s *Spider) initCompent() {
 }
 
 func (s *Spider) saveRequest(req *Request, state RequestState) {
-	for _, store := range s.listStore {
+	for _, store := range s.RequestsStore {
 		if !s.selfStore {
 			dbname, err := store.Get(StoreKey)
 			if err != nil {
@@ -483,17 +470,12 @@ func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
 
 //SetStoreDB 存储器 存储请求数据
 func (s *Spider) AddStoreDB(store Store) {
-	s.listStore = append(s.listStore, store)
+	s.RequestsStore = append(s.RequestsStore, store)
 }
 
 //Clear 清楚存储的数据
 func (s *Spider) ClearStoreDB() {
 	s.isClearStoreDB = true
-}
-
-//SetStoreDBSavePath store存储地址，如果使用AddStoreDB自定义的store，则设置存储地址无效
-func (s *Spider) SetStoreDBSavePath(path string) {
-	s.saveStorePath = path
 }
 
 //SaveHtml 是否保存html 默认false不保存
