@@ -18,23 +18,26 @@ import (
 )
 
 type Spider struct {
-	downloader     Downloader          //下载器 负责下载网页
-	listHandler    []Handler           //处理器 负责处理网页
-	listPipeline   []Pipeline          //管道 负责持久化数据或者下载资源的任务
-	scheduler      Scheduler           //调度器 负责待爬取的url的管理
-	sleepTime      time.Duration       //控制访问的速度，单个协程每执行一次沉睡sleepTime
-	goroutines     int                 //开启协程数量
-	header         map[string][]string //设置请求头
-	initRequests   []Request           //种子url
-	timeOut        time.Duration       //没有数据的情况下，程序结束运行的时间
-	isTimeOut      bool                //没有数据的情况下是否自动退出，默认true
-	listListener   []Listener          //程序监听器
-	isSaveHtml     bool                //是否把下载的html页面保存下来,默认不保存
-	saveHtmlPath   string              //html页面数据保存地址
-	requestFilter  RequestFilter       //过滤重复请求
-	isClearStoreDB bool                //是否清空存储的数据
-	suffixGenerate func() string       //名字的后缀生成函数
-	byteHandler    ByteHandler         //字节处理
+	listProxy       []Proxy             //代理
+	proxyProvider   ProxyProvider       //代理提供器
+	clientGenerator ClientGenerator     //客户端生成器
+	downloader      Downloader          //下载器 负责下载网页
+	listHandler     []Handler           //处理器 负责处理网页
+	listPipeline    []Pipeline          //管道 负责持久化数据或者下载资源的任务
+	scheduler       Scheduler           //调度器 负责待爬取的url的管理
+	sleepTime       time.Duration       //控制访问的速度，单个协程每执行一次沉睡sleepTime
+	goroutines      int                 //开启协程数量
+	header          map[string][]string //设置请求头
+	initRequests    []Request           //种子url
+	timeOut         time.Duration       //没有数据的情况下，程序结束运行的时间
+	isTimeOut       bool                //没有数据的情况下是否自动退出，默认true
+	listListener    []Listener          //程序监听器
+	isSaveHtml      bool                //是否把下载的html页面保存下来,默认不保存
+	saveHtmlPath    string              //html页面数据保存地址
+	requestFilter   RequestFilter       //过滤重复请求
+	isClearStoreDB  bool                //是否清空存储的数据
+	suffixGenerate  func() string       //名字的后缀生成函数
+	byteHandler     ByteHandler         //字节处理
 
 	RequestsStore    []Store       //保存请求对象数据
 	PreHandleRequest RequestHandle //执行请求前的请求处理
@@ -45,6 +48,7 @@ type Spider struct {
 func NewSpider(seedUrl ...string) *Spider {
 	spider := &Spider{
 		scheduler:     &RequestScheduler{},
+		listProxy:     make([]Proxy, 0),
 		listHandler:   make([]Handler, 0),
 		listPipeline:  make([]Pipeline, 0),
 		sleepTime:     time.Second * 1,  //默认1s
@@ -126,6 +130,21 @@ func (s *Spider) SetGoroutines(n int) {
 	s.goroutines = n
 }
 
+//AddProxy 添加代理
+func (s *Spider) AddProxy(pxy ...Proxy) {
+	s.listProxy = append(s.listProxy, pxy...)
+}
+
+//SetProxyProvider 代理提供者
+func (s *Spider) SetProxyProvider(proxyProvider ProxyProvider) {
+	s.proxyProvider = proxyProvider
+}
+
+//SetClientGenerator 客户端生成器
+func (s *Spider) SetClientGenerator(clientGenerator ClientGenerator) {
+	s.clientGenerator = clientGenerator
+}
+
 //SetDownloader 设置下载器
 func (s *Spider) SetDownloader(downloader Downloader) {
 	s.downloader = downloader
@@ -168,10 +187,25 @@ func (s *Spider) initCompent() {
 	if _, ok := s.header["User-Agent"]; !ok {
 		s.AddHeader("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.159 Safari/537.36")
 	}
-	if s.downloader == nil {
-		httpDownloader := NewDownloader()
-		s.downloader = httpDownloader
+	if s.proxyProvider == nil {
+		pxyProvider := &SimpleProxyProvider{
+			proxies: make([]Proxy, 0),
+		}
+		s.proxyProvider = pxyProvider
 	}
+	if len(s.listProxy) > 0 {
+		s.proxyProvider.AddProxy(s.listProxy...)
+	}
+	if s.clientGenerator == nil {
+		sg := &SimpleClientGenerator{}
+		s.clientGenerator = sg
+	}
+	s.clientGenerator.SetProxyProvider(s.proxyProvider)
+	if s.downloader == nil {
+		dlr := &HttpDownloader{}
+		s.downloader = dlr
+	}
+	s.downloader.SetClientGenerator(s.clientGenerator)
 
 	if s.scheduler == nil {
 		s.scheduler = &RequestScheduler{}

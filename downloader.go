@@ -2,35 +2,25 @@ package gospider
 
 import (
 	"context"
-	"crypto/tls"
 	"errors"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"strings"
-	"time"
 )
 
 type Downloader interface {
 	Download(req *Request, ctx context.Context) (resp *Response, err error)
+	SetClientGenerator(generator ClientGenerator)
 }
 
 //Downloader的默认实现
 type HttpDownloader struct {
-	HttpClient http.Client
+	generator ClientGenerator
 }
 
-func NewDownloader() *HttpDownloader {
-	return &HttpDownloader{
-		HttpClient: http.Client{
-			Timeout: 10 * time.Second, // 10s 超时
-			Transport: &http.Transport{
-				TLSClientConfig: &tls.Config{
-					InsecureSkipVerify: true, //跳过证书
-				},
-			},
-		},
-	}
+func (d *HttpDownloader) SetClientGenerator(generator ClientGenerator) {
+	d.generator = generator
 }
 
 func (d *HttpDownloader) Download(request *Request, ctx context.Context) (r *Response, err error) {
@@ -58,7 +48,8 @@ func (d *HttpDownloader) Download(request *Request, ctx context.Context) (r *Res
 			}
 		}
 	}
-	resp, err := d.HttpClient.Do(req)
+	client := d.generator.Generate()
+	resp, err := client.Do(req)
 	if err != nil {
 		return
 	}
