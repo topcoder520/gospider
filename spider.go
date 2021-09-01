@@ -10,6 +10,7 @@ import (
 	"os/signal"
 	"path"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"syscall"
@@ -28,7 +29,6 @@ type Spider struct {
 	timeOut        time.Duration       //没有数据的情况下，程序结束运行的时间
 	isTimeOut      bool                //没有数据的情况下是否自动退出，默认true
 	listListener   []Listener          //程序监听器
-	selfStore      bool                //store是否是自定义
 	isSaveHtml     bool                //是否把下载的html页面保存下来,默认不保存
 	saveHtmlPath   string              //html页面数据保存地址
 	requestFilter  RequestFilter       //过滤重复请求
@@ -47,8 +47,8 @@ func NewSpider(seedUrl ...string) *Spider {
 		scheduler:     &RequestScheduler{},
 		listHandler:   make([]Handler, 0),
 		listPipeline:  make([]Pipeline, 0),
-		sleepTime:     time.Second * 1, //默认1s
-		goroutines:    1,               //默认开1个
+		sleepTime:     time.Second * 1,  //默认1s
+		goroutines:    runtime.NumCPU(), //默认主机cpu核数
 		header:        make(map[string][]string),
 		initRequests:  make([]Request, 0),
 		isTimeOut:     true,
@@ -202,18 +202,16 @@ func (s *Spider) initCompent() {
 	}
 	if len(s.RequestsStore) == 0 {
 		dataPath := "./data/db/requestdb/" //默认地址
-		reqStore := &RequestStore{}
+		reqStore := &DataStore{}
 		reqStore.dataDB = CreateDataDB(dataPath)
 		s.RequestsStore = append(s.RequestsStore, reqStore)
-	} else {
-		s.selfStore = true
 	}
 	if s.requestFilter == nil {
 		requestFilter := &StoreRequestFilter{
 			mapRequest: make(map[string]Request),
 		}
 		for _, store := range s.RequestsStore {
-			listRequest, err := store.List("request-")
+			listRequest, err := store.List("")
 			if err != nil {
 				log.Println("store.List err: ", err)
 				continue
@@ -232,7 +230,7 @@ func (s *Spider) initCompent() {
 	//
 	s.scheduler.Push(s.requestFilter.Filter(s.initRequests...)...)
 	for _, store := range s.RequestsStore {
-		listRequest, err := store.List(fmt.Sprintf("request-%s", RequestNormal))
+		listRequest, err := store.List(string(RequestNormal))
 		if err != nil {
 			log.Println("store.List err: ", err)
 			continue
@@ -250,27 +248,12 @@ func (s *Spider) initCompent() {
 
 func (s *Spider) saveRequest(req *Request, state RequestState) {
 	for _, store := range s.RequestsStore {
-		if !s.selfStore {
-			dbname, err := store.Get(StoreKey)
-			if err != nil {
-				log.Println("Store.Get err: ", err)
-				continue
-			}
-			doman, err := s.getDoman(req.Url)
-			if err != nil {
-				log.Println("getDoman err: ", err)
-				return
-			}
-			if dbname != doman {
-				continue
-			}
-		}
 		reqStr, err := RequestStringify(*req)
 		if err != nil {
 			log.Println(err)
 			return
 		}
-		store.Add(fmt.Sprintf("request-%s-%s", state, req.Id), reqStr)
+		store.Add(fmt.Sprintf("%s-%s", state, req.Id), reqStr)
 	}
 }
 
@@ -469,12 +452,12 @@ func (s *Spider) handRequest(req *Request, ctx context.Context) (err error) {
 }
 
 //SetStoreDB 存储器 存储请求数据
-func (s *Spider) AddStoreDB(store Store) {
+func (s *Spider) AddRequestStore(store Store) {
 	s.RequestsStore = append(s.RequestsStore, store)
 }
 
 //Clear 清楚存储的数据
-func (s *Spider) ClearStoreDB() {
+func (s *Spider) ClearRequestStore() {
 	s.isClearStoreDB = true
 }
 

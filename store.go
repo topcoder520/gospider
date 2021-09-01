@@ -16,12 +16,21 @@ type Store interface {
 	Clear(prefix string, limit ...string)
 }
 
+//CreateDataDB 创建存储库
+func CreateDataDB(path string) *leveldb.DB {
+	db, err := leveldb.OpenFile(path, nil)
+	if err != nil {
+		panic(err)
+	}
+	return db
+}
+
 //Store的默认实现
-type RequestStore struct {
+type DataStore struct {
 	dataDB *leveldb.DB
 }
 
-func (lvdb *RequestStore) Get(key string) (string, error) {
+func (lvdb *DataStore) Get(key string) (string, error) {
 	reqByte, err := lvdb.dataDB.Get([]byte(key), nil)
 	if err != nil {
 		return "", err
@@ -29,11 +38,11 @@ func (lvdb *RequestStore) Get(key string) (string, error) {
 	return string(reqByte), nil
 }
 
-func (lvdb *RequestStore) Add(key string, value string) error {
+func (lvdb *DataStore) Add(key string, value string) error {
 	return lvdb.dataDB.Put([]byte(key), []byte(value), nil)
 }
 
-func (lvdb *RequestStore) BatchAdd(m map[string]string) error {
+func (lvdb *DataStore) BatchAdd(m map[string]string) error {
 	batch := new(leveldb.Batch)
 	for k, v := range m {
 		batch.Put([]byte(k), []byte(v))
@@ -44,11 +53,11 @@ func (lvdb *RequestStore) BatchAdd(m map[string]string) error {
 	return nil
 }
 
-func (lvdb *RequestStore) Del(key string) error {
+func (lvdb *DataStore) Del(key string) error {
 	return lvdb.dataDB.Delete([]byte(key), nil)
 }
 
-func (lvdb *RequestStore) List(prefix string, limit ...string) ([]string, error) {
+func (lvdb *DataStore) List(prefix string, limit ...string) ([]string, error) {
 	var iter iterator.Iterator = nil
 	if len(limit) > 0 {
 		iter = lvdb.dataDB.NewIterator(&util.Range{Start: []byte(prefix), Limit: []byte(limit[0])}, nil)
@@ -63,7 +72,7 @@ func (lvdb *RequestStore) List(prefix string, limit ...string) ([]string, error)
 	return listReq, nil
 }
 
-func (lvdb *RequestStore) Clear(prefix string, limit ...string) {
+func (lvdb *DataStore) Clear(prefix string, limit ...string) {
 	var iter iterator.Iterator = nil
 	if len(limit) > 0 {
 		iter = lvdb.dataDB.NewIterator(&util.Range{Start: []byte(prefix), Limit: []byte(limit[0])}, nil)

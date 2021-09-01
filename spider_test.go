@@ -22,7 +22,7 @@ import (
 func TestExample_1(t *testing.T) {
 	fmt.Println("start spider....")
 	spider := NewSpider("https://www.w3school.com.cn/tags/tag_html.asp")
-	spider.ClearStoreDB()
+	spider.ClearRequestStore()
 	//spider.SaveHtml(true, "./data/html/", nil)
 	spider.SaveHtml("./data/html/", func() string {
 		return ".html"
@@ -51,7 +51,7 @@ func TestExample_dbname(t *testing.T) {
 func TestExample_2(t *testing.T) {
 	fmt.Println("start spider....")
 	spider := NewSpider("https://studygolang.com/pkgdoc")
-	spider.ClearStoreDB()
+	spider.ClearRequestStore()
 	spider.SetTimeOut(10 * time.Second) //10s 后退出
 	spider.AddSeedUrl("https://studygolang.com/pkgdoc")
 	spider.SetSleepTime(1 * time.Second)
@@ -349,7 +349,8 @@ func (h *ChapterHandler) Handle(resp Response, handleResult *Result, ctx context
 }
 
 type BookPipeline struct {
-	spider *Spider
+	spider    *Spider
+	bookStore Store
 }
 
 func BookStringify(book Book) (string, error) {
@@ -376,9 +377,7 @@ func (p *BookPipeline) Process(handleResult *Result, ctx context.Context) error 
 		if err != nil {
 			return err
 		}
-		for _, sotre := range p.spider.RequestsStore {
-			sotre.Add(fmt.Sprintf("book-%s", book.Id), bookstr)
-		}
+		p.bookStore.Add(fmt.Sprintf("book-%s", book.Id), bookstr)
 		return nil
 	}
 	chapterInf, ok := handleResult.TargetItems["chapter"]
@@ -388,9 +387,7 @@ func (p *BookPipeline) Process(handleResult *Result, ctx context.Context) error 
 		if err != nil {
 			return err
 		}
-		for _, sotre := range p.spider.RequestsStore {
-			sotre.Add(fmt.Sprintf("book-chapter-%s-%s-%s", chapter.BookId, chapter.Title, chapter.PageIndex), chapterstr)
-		}
+		p.bookStore.Add(fmt.Sprintf("book-chapter-%s-%s-%s", chapter.BookId, chapter.Title, chapter.PageIndex), chapterstr)
 	}
 	return nil
 }
@@ -401,14 +398,14 @@ func TestBiquge(t *testing.T) {
 	spider.AddHeader("Host", "www.bqg74.com")
 	spider.AddHeader("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9")
 	spider.AddHeader("Cookie", "Hm_lvt_15ab8d1f6950da8c0dd49a424be8cbdb=1630327189; Hm_lpvt_15ab8d1f6950da8c0dd49a424be8cbdb=1630339530")
-	//spider.ClearStoreDB()
+	//spider.ClearRequestStore()
 	spider.SetByteHandler(&GBKByteHandler{})
 	spider.SetGoroutines(5)
 	spider.SetSleepTime(2 * time.Second)
 	//spider.SaveHtml("./data/html", nil)
 	spider.AddHandler(&BookHandler{})
 	spider.AddHandler(&ChapterHandler{})
-	spider.AddPipeline(&BookPipeline{spider: spider})
+	spider.AddPipeline(&BookPipeline{spider: spider, bookStore: &DataStore{dataDB: CreateDataDB("./data/db/bookdb/")}})
 	spider.Run()
 }
 
@@ -419,7 +416,7 @@ func ParseBook(str string) (*Book, error) {
 }
 
 func TestBiqugeStore(t *testing.T) {
-	levelStore := RequestStore{}
+	levelStore := DataStore{}
 	path := "./data/db/www.bqg74.com"
 	levelStore.dataDB = CreateDataDB(path)
 	listBook, err := levelStore.List("book-")
