@@ -36,18 +36,6 @@ func TestExample_path(t *testing.T) {
 	fmt.Println(path.Base(p))
 }
 
-func TestExample_dbname(t *testing.T) {
-	db, err := leveldb.OpenFile("./data/db/studygolang.com/", nil)
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	defer db.Close()
-	data, err := db.Get([]byte(StoreKey), nil)
-	fmt.Println(err)
-	fmt.Printf("[studygolang.com]:%s\n", string(data))
-}
-
 func TestExample_2(t *testing.T) {
 	fmt.Println("start spider....")
 	spider := NewSpider("https://studygolang.com/pkgdoc")
@@ -458,7 +446,7 @@ func TestProxy(t *testing.T) {
 	spider := NewSpider("https://www.bqg74.com/0_0100/4545.html")
 	spider.ClearRequestStore()
 	spider.SetGoroutines(1)
-	u, err := url.Parse("http://218.7.171.91:3128")
+	u, err := url.Parse("http://127.0.0.1:8888/")
 	if err != nil {
 		fmt.Println(err)
 		return

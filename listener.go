@@ -14,7 +14,14 @@ type DefaultListener struct {
 }
 
 func (listen *DefaultListener) OnError(req Request, e error, ctx context.Context) {
-	listen.spider.saveRequest(&req, RequestError)
+	if req.CycleTime < listen.spider.cycleTime {
+		req.CycleTime++
+		req.State = RequestNormal
+		listen.spider.saveRequest(&req, RequestNormal)
+		listen.spider.scheduler.Push(req)
+	} else {
+		listen.spider.saveRequest(&req, RequestError)
+	}
 }
 func (listen *DefaultListener) OnSuccess(req Request, ctx context.Context) {
 	listen.spider.saveRequest(&req, RequestSuccess)

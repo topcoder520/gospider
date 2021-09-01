@@ -38,6 +38,7 @@ type Spider struct {
 	isClearStoreDB  bool                //是否清空存储的数据
 	suffixGenerate  func() string       //名字的后缀生成函数
 	byteHandler     ByteHandler         //字节处理
+	cycleTime       int                 //请求失败之后重复请求的次数
 
 	RequestsStore    []Store       //保存请求对象数据
 	PreHandleRequest RequestHandle //执行请求前的请求处理
@@ -180,7 +181,10 @@ func (s *Spider) SetByteHandler(handler ByteHandler) {
 	s.byteHandler = handler
 }
 
-const StoreKey = "STORENAME"
+//SetCycleTime 设置请求失败后重复请求次数
+func (s *Spider) SetCycleTime(time int) {
+	s.cycleTime = time
+}
 
 //initCompent init
 func (s *Spider) initCompent() {

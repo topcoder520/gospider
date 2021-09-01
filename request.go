@@ -16,6 +16,7 @@ type Request struct {
 	Extras     map[string]interface{} //额外信息
 	Skip       bool                   //跳过请求不处理
 	State      RequestState           //请求的状态
+	CycleTime  int                    //请求失败之后重复请求的次数
 }
 
 func (req *Request) GetExtras(key string) interface{} {
@@ -41,12 +42,13 @@ const (
 func NewRequest() Request {
 	u4 := uuid.NewV4()
 	return Request{
-		Id:     u4.String(),
-		Method: http.MethodGet,
-		Header: map[string][]string{},
-		Extras: map[string]interface{}{},
-		State:  RequestNormal,
-		Skip:   false,
+		Id:        u4.String(),
+		Method:    http.MethodGet,
+		Header:    map[string][]string{},
+		Extras:    map[string]interface{}{},
+		State:     RequestNormal,
+		Skip:      false,
+		CycleTime: 0,
 	}
 }
 
