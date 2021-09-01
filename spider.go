@@ -240,6 +240,11 @@ func (s *Spider) initCompent() {
 		reqStore.dataDB = CreateDataDB(dataPath)
 		s.RequestsStore = append(s.RequestsStore, reqStore)
 	}
+	if s.isClearStoreDB {
+		for _, store := range s.RequestsStore {
+			store.Clear("")
+		}
+	}
 	if s.requestFilter == nil {
 		requestFilter := &StoreRequestFilter{
 			mapRequest: make(map[string]Request),

@@ -453,3 +453,17 @@ func TestRegex2(t *testing.T) {
 		fmt.Println(c)
 	}
 }
+
+func TestProxy(t *testing.T) {
+	spider := NewSpider("https://www.bqg74.com/0_0100/4545.html")
+	spider.ClearRequestStore()
+	spider.SetGoroutines(1)
+	u, err := url.Parse("http://218.7.171.91:3128")
+	if err != nil {
+		fmt.Println(err)
+		return
+	}
+	pxy := CreateProxy(*u)
+	spider.AddProxy(pxy)
+	spider.Run()
+}
