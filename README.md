@@ -1,17 +1,20 @@
 # gospider
 用go写的简单爬虫
 
-程序分别有以下几部分组成：       
-    下载器(Downloader)     
-    处理器(Handler)        
-    调度器(Scheduler)      
-    结果处理器(Pipeline)     
-    监听器(Listener)       
-    代理提供者(ProxyProvider)        
-    客户端生成器(ClientGenerator)     
-    存储器(Store)      
+程序分别有以下几部分组成    
+
+    下载器(Downloader)    负责下载网页           
+    处理器(Handler)       负责解析网页           
+    调度器(Scheduler)     负责调度待处理请求            
+    结果处理器(Pipeline)  负责持久化数据或者其他的任务         
+    监听器(Listener)      监听下载情况           
+    代理提供者(ProxyProvider)     代理ip提供         
+    客户端生成器(ClientGenerator)  客户端生成          
+    存储器(Store)      提供数据存储，默认实现是基于goleveldb，也可自行实现基于其他数据库的          
 
 这些都有默认的实现，也可以自己根据接口实现相应的组件      
+
+一般使用只需要自己实现处理器(Handler)和结果处理器(Pipeline)     
 
 DEMO1：
 
