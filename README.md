@@ -1,6 +1,18 @@
 # gospider
 用go写的简单爬虫
 
+程序分别有以下几部分组成：
+    下载器(Downloader)
+    处理器(Handler)
+    调度器(Scheduler)
+    结果处理器(Pipeline)
+    监听器(Listener)
+    代理提供者(ProxyProvider)
+    客户端生成器(ClientGenerator)
+    存储器(Store)
+
+这些都有默认的实现，也可以自己根据接口实现相应的组件
+
 DEMO1：
 
     func TestExample_1(t *testing.T) {
